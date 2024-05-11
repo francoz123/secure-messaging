@@ -46,18 +46,29 @@ def main():
         if command == 'READ':
           if len(messages[username]) > 0:
             current_message = messages[username].pop(0)
-            responese = f"{current_message['sender']}: {current_message['message']}"
+            responese = json.dumps(current_message)
             server_socket.sendall(responese.encode())
+            if current_message['type'] != 'read':
+              current_message['type'] = 'read'
+              messages[username].append(current_message)
           else:
             responese = 'READ ERROR'
             server_socket.sendall(responese.encode())
         if command == 'COMPOSE':
           recipient = json_data['recipient']
-          message = {'sender': username, 'message': json_data['message'], 'recipient': recipient}
+          if not 'message' in json_data:
+            server_socket.sendall(pkeys[recipient].encode())
+            data = server_socket.recv(1024)
+            # Deserialize JSON string to Python dictionary
+            json_data = json.loads(data.decode())
+            
+          message = {'sender': username, 'message': json_data['message'], 'recipient': recipient, 'hash': 'hash',\
+                     'type': 'unread'}
           if recipient in messages:
             messages[recipient].append(message)
           else:
             messages[recipient] = []
+            messages[recipient].append(message)
           responese = 'MESSAGE SENT'
           server_socket.sendall(responese.encode())
         if command == 'EXIT':

@@ -8,6 +8,7 @@ from util.uitl import *
 from util.prorocol import *
 
 messages = {}
+pkeys = {}
 
 def main():
   if len(sys.argv) != 3:
@@ -33,8 +34,8 @@ def main():
       res = int(client_socket.recv(1024).decode())
     print('Login successful')
 
-    if not file_exists(username+"_privkey.pem"):
-      generate_key_pair(username+"_privkey.pem", username+"_privkey.pem")
+    if not file_exists(username+"_privkey.pem") or not file_exists(username+"_pubkey.pem"):
+      generate_key_pair(username+"_pubkey.pem", username+"_privkey.pem")
       
     with open(username+"_pubkey.pem", 'rb') as key_file:
       public_key_content = key_file.read()
@@ -57,13 +58,23 @@ def main():
         if response == "READ ERROR":
           print("You have no messages\n")
         else:
-          print(f"{response}\n")
+          response_json = json.loads(response)
+          if response_json['type'] == 'read':
+            print(f"{response_json['recipient']} read your message: {response_json['message']}\n")
+          else:
+            print(f"{response_json['sender']}: {response_json['message']}\n")
       elif command == "COMPOSE":
         recipient = get_username2("Enter recipient's name: ")
         message = ascii_input("Enter message to send: ")
-        data = json.dumps({'command': command, 'recipient':recipient, 'message':message})
-        client_socket.sendall(data.encode())
-        response = client_socket.recv(1024).decode()
+        if not recipient in pkeys:
+          data = json.dumps({'command': command, 'recipient':recipient})
+          client_socket.sendall(data.encode())
+          response = client_socket.recv(1024).decode()
+          pkeys[recipient] = response
+        else:
+          data = json.dumps({'command': command, 'recipient':recipient, 'message':message, 'hash': 'hash'})
+          response = client_socket.recv(1024).decode()
+        #response = client_socket.recv(1024).decode()
         if response == "MESSAGE SENT":
           print("Message sent successfully\n")
         elif response == "MESSAGE FAILED":
