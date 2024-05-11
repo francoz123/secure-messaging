@@ -7,4 +7,4 @@ if [ $# != 2 ]; then
 fi
 
 # Call the C program and pass the arguments
-./client $1 $2
+python3 $1 $2

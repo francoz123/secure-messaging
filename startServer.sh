@@ -7,4 +7,4 @@ if [ $# != 1 ]; then
 fi
 
 # Call the C program and pass the arguments
-./server $1
+python3 server.py $1

@@ -1,35 +1,67 @@
+import json
 import socket
 import ssl
+from database import *
+from util.prorocol import *
 
-def ssl_server():
-    # Create a TCP/IP socket
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+messages = {}
 
-    # Bind the socket to the address and port
-    server_address = ('localhost', 12345)
-    server_socket.bind(server_address)
+def main():
+  if len(sys.argv) != 2:
+    print_and_exit("Usage: {} <port>".format(sys.argv[0]))
+  PORT = validate_port(sys.argv[1])
+  sock= socket_server(PORT)
+  
+  while True:
+    server_socket = ssl_socket(sock)
+    result, user = authenticate(server_socket)
 
-    # Listen for incoming connections
-    server_socket.listen(5)
-
-    print("SSL server is listening...")
-
-    # Accept an incoming connection
-    client_socket, client_address = server_socket.accept()
-    #context = ssl.create_default_context()
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(certfile='./security/server.crt', keyfile='./security/private.key')
-    # Wrap the socket with SSL
-    ssl_socket = context.wrap_socket(client_socket, server_side=True)
-
+    while result < 0:
+      server_socket.sendall(str(result).encode())
+      result, user = authenticate(server_socket)
+    username = user['username']
+    recipient = ''
     try:
+      server_socket.sendall(str(result).encode())
+      
+      if username not in messages:
+        messages[username] = []
+      num_msg = len(messages[username])
+      server_socket.sendall(str(num_msg).encode())
+      
+      connected = True
+      while connected:
         # Receive data from the client
-        data = ssl_socket.recv(1024)
-        print("Received:", data.decode())
-
-    finally:
-        # Close the connection
-        ssl_socket.close()
+        data = server_socket.recv(1024)
+        # Deserialize JSON string to Python dictionary
+        json_data = json.loads(data.decode())
+        command = json_data['comman']
+        if command == 'READ':
+          if len(messages[username]) > 0:
+            current_message = messages['username'].pop[0]
+            responese = f"{current_message['sender']}: {current_message['message']}"
+            server_socket.sendall(responese.encode())
+          else:
+            responese = 'READ ERROR'
+            server_socket.sendall(responese.encode())
+        if command == 'COMPOSE':
+          message = {'sender': username, 'message': json_data['message']}
+          recipient = json_data['recipient']
+          if recipient in messages:
+            messages[json_data['recipient']].append(message)
+          else:
+            messages[recipient] = [messages]
+            responese = 'MESSAGE SENT'
+            server_socket.sendall(responese.encode())
+        if command == 'EXIT':
+          connected =False
+          
+    except socket.error as se:
+      print(f"Server error: {se}")
+      sys.exit(1)
+    except Exception as e:
+      print(f"Server error: {e}")
+      sys.exit(1)
 
 if __name__ == "__main__":
-    ssl_server()
+  main()

@@ -92,10 +92,20 @@ def get_user_info():
   if opt == '2':
     username = get_username()
     password = get_password_with_confirmation()
-    auth_type = 'login'
+    auth_type = 'register'
   
-  return username, password, auth_type
-        
+  return username, password, auth_type  
+
+def ascii_input(prompt):
+    """ Gets ASCII input with the given prompt. """
+    while True:
+        value = input(prompt)
+        try:
+            value.encode("ascii")
+        except UnicodeError:
+            print("Please only enter ASCII characters")
+        else:
+            return value
     
 
 if __name__ == "__main__":
