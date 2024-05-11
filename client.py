@@ -2,6 +2,7 @@ import json
 import socket
 import ssl
 import sys
+from os.path import exists as file_exists
 
 from util.uitl import *
 from util.prorocol import *
@@ -32,6 +33,14 @@ def main():
       res = int(client_socket.recv(1024).decode())
     print('Login successful')
 
+    if not file_exists(username+"_privkey.pem"):
+      generate_key_pair(username+"_privkey.pem", username+"_privkey.pem")
+      
+    with open(username+"_pubkey.pem", 'rb') as key_file:
+      public_key_content = key_file.read()
+      print(public_key_content)
+      send_public_key(username+"_pubkey.pem", client_socket)
+
     num_msg = int(client_socket.recv(1024).decode())
     print(f"You have {num_msg} unread message(s)")
 
@@ -50,9 +59,10 @@ def main():
         else:
           print(f"{response}\n")
       elif command == "COMPOSE":
-        recipient = get_username("Enter recipient's name: ")
+        recipient = get_username2("Enter recipient's name: ")
         message = ascii_input("Enter message to send: ")
         data = json.dumps({'command': command, 'recipient':recipient, 'message':message})
+        client_socket.sendall(data.encode())
         response = client_socket.recv(1024).decode()
         if response == "MESSAGE SENT":
           print("Message sent successfully\n")

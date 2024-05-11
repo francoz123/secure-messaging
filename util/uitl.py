@@ -106,7 +106,13 @@ def ascii_input(prompt):
             print("Please only enter ASCII characters")
         else:
             return value
-    
+
+def get_username2(prompt):
+  """ Gets an ASCII username with the given prompt. """
+  while True:
+    username = ascii_input(prompt)
+    if " " not in username:
+      return username
 
 if __name__ == "__main__":
   get_user_info()
