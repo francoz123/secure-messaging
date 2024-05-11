@@ -4,8 +4,7 @@ import socket
 import ssl
 import sys
 import bcrypt
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import *
 from OpenSSL import crypto
 from database import *
 from util.uitl import print_and_exit
@@ -116,7 +115,7 @@ def split_response(response):
   remainder = msg_parts[1] if len(msg_parts) > 1 else None
   return command, remainder
 
-def generate_key_files(public_key_file, private_key_file):
+""" def generate_key_files(public_key_file, private_key_file):
     # Check if key files already exist
     if Path(public_key_file).exists() and Path(private_key_file).exists():
         print("Key files already exist.")
@@ -148,7 +147,7 @@ def generate_key_files(public_key_file, private_key_file):
                 format=serialization.PublicFormat.SubjectPublicKeyInfo
             )
         )
-    print("Public key file created:", public_key_file)
+    print("Public key file created:", public_key_file) """
 
 def generate_key_pair(public_key_file, private_key_file):
     pk = crypto.PKey()
@@ -164,6 +163,8 @@ def generate_key_pair(public_key_file, private_key_file):
         priv_file.write(private_key)
 
         
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 def send_public_key(public_key_file, socket):
     # Load the public key from file
@@ -180,3 +181,160 @@ def send_public_key(public_key_file, socket):
     ).decode()
 
     socket.sendall(json.dumps({'pkey':public_key_base64}).encode())
+
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+
+def sign_message2(private_key_path: str, message_hash: bytes) -> bytes:
+    """
+    Signs a message hash using the private key.
+
+    Args:
+        private_key_path (str): Path to the private key file.
+        message_hash (bytes): The hash of the message.
+
+    Returns:
+        bytes: The signature.
+    """
+    with open(private_key_path, "rb") as private_key_file:
+        private_key = serialization.load_pem_private_key(
+            private_key_file.read(), password=None
+        )
+
+    signature = private_key.sign(
+        message_hash,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH,
+        ),
+        hashes.SHA256(),
+    )
+    return signature
+
+    
+def sign_message(message, private_key_file):
+    # Load the private key from file
+    with open(private_key_file, "rb") as f:
+        private_key_bytes = f.read()
+
+    # Convert the private key bytes to PEM format
+    private_key = serialization.load_pem_private_key(
+        private_key_bytes,
+        password=None,
+    )
+
+    # Hash the message
+    digest = hashlib.sha256(message.encode()).digest()
+
+    # Sign the hashed message using the private key
+    signature = private_key.sign(
+        digest,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+
+    return signature
+
+def verify_signature(message, signature, public_key_file):
+    # Load the public key from file
+    with open(public_key_file, "rb") as f:
+        public_key_bytes = f.read()
+
+    # Convert the public key bytes to PEM format
+    public_key = serialization.load_pem_public_key(
+        public_key_bytes,
+        backend=default_backend()
+    )
+
+    # Hash the message
+    digest = hashlib.sha256(message.encode()).digest()
+
+    # Verify the signature using the public key
+    try:
+        public_key.verify(
+            signature,
+            digest,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return True
+    except Exception as e:
+        return False
+    
+def encrypt_message(message, public_key_file):
+    # Load the public key from file
+    with open(public_key_file, "rb") as f:
+        public_key_bytes = f.read()
+
+    # Convert the public key bytes to PEM format
+    public_key = serialization.load_pem_public_key(
+        public_key_bytes,
+        backend=default_backend()
+    )
+
+    # Encrypt the message using the public key
+    ciphertext = public_key.encrypt(
+        message.encode(),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+    return ciphertext.hex()
+
+def decrypt_message(encrypted_message, private_key_file):
+    # Load the private key from file
+    with open(private_key_file, "rb") as f:
+        private_key_bytes = f.read()
+
+    # Convert the private key bytes to PEM format
+    private_key = serialization.load_pem_private_key(
+        private_key_bytes,
+        password=None,
+        backend=default_backend()
+    )
+
+    # Decrypt the encrypted message using the private key
+    encrypted_message_bytes = bytes.fromhex(encrypted_message)
+    plaintext = private_key.decrypt(
+        encrypted_message_bytes,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=padding.algorithm.MGF1(hashes.SHA256())),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+    return plaintext.decode()
+
+def send_encrypted_message(encrypted_message, host, port):
+    # Create a socket object
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # Connect to the server
+        s.connect((host, port))
+        
+        # Send the encrypted message
+        s.sendall(encrypted_message)
+
+def send_encrypted_message_as_json(encrypted_message, host, port):
+    # Create a socket object
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # Connect to the server
+        s.connect((host, port))
+        
+        # Create a dictionary to hold the encrypted message
+        message_dict = {'encrypted_message': encrypted_message.hex()}  # Convert bytes to hex string
+        
+        # Convert the dictionary to JSON format
+        json_message = json.dumps(message_dict)
+        
+        # Send the JSON message
+        s.sendall(json_message.encode())

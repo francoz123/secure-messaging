@@ -34,6 +34,8 @@ def main():
       res = int(client_socket.recv(1024).decode())
     print('Login successful')
 
+    pubkey_file = username+"_pubkey.pem";
+    privkey_file = username+"_privkey.pem"
     if not file_exists(username+"_privkey.pem") or not file_exists(username+"_pubkey.pem"):
       generate_key_pair(username+"_pubkey.pem", username+"_privkey.pem")
       
@@ -51,6 +53,7 @@ def main():
       command = input("Enter command: ")
       command = command.upper()
       data = {}
+
       if command == "READ":
         data['command'] =  command
         client_socket.sendall(json.dumps(data).encode())
@@ -59,10 +62,15 @@ def main():
           print("You have no messages\n")
         else:
           response_json = json.loads(response)
+          key_file = pubkey_file if response['recipient'] == username else pkeys[recipient]
+          decrypted_message = decrypt_message(response['message'], key_file)
+          if not verify_signature(decrypted_message, key_file):
+            print('Message might have been tampered with!')
           if response_json['type'] == 'read':
             print(f"{response_json['recipient']} read your message: {response_json['message']}\n")
           else:
             print(f"{response_json['sender']}: {response_json['message']}\n")
+
       elif command == "COMPOSE":
         recipient = get_username2("Enter recipient's name: ")
         message = ascii_input("Enter message to send: ")
@@ -71,16 +79,20 @@ def main():
           client_socket.sendall(data.encode())
           response = client_socket.recv(1024).decode()
           pkeys[recipient] = response
-        else:
-          data = json.dumps({'command': command, 'recipient':recipient, 'message':message, 'hash': 'hash'})
-          response = client_socket.recv(1024).decode()
+        #else:
+        message_signature = sign_message(message, privkey_file)
+        encrypted_message = encrypt_message(message, privkey_file)
+        data = json.dumps({'command': command, 'recipient':recipient, 'message':encrypted_message, 'hash': message_signature})
+        client_socket.sendall(data.encode())
         #response = client_socket.recv(1024).decode()
+        response = client_socket.recv(1024).decode()
         if response == "MESSAGE SENT":
           print("Message sent successfully\n")
         elif response == "MESSAGE FAILED":
           print("Message failed to send\n")
         else:
           raise ValueError("Invalid response from server")
+        
       elif command == "EXIT":
         data['command'] = 'EXIT'
         client_socket.sendall(json.dumps(data).encode())
