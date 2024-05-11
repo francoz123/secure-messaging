@@ -1,115 +1,35 @@
 import socket
 import ssl
-import sys
-from database import create_database, save_database, find_user, add_user, read_next_message, save_message, remove_node
 
-BUFFER_SIZE = 1024
+def ssl_server():
+    # Create a TCP/IP socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def main():
-    if len(sys.argv) != 2:
-        print("Usage: {} <port>".format(sys.argv[0]))
-        sys.exit(1)
+    # Bind the socket to the address and port
+    server_address = ('localhost', 12345)
+    server_socket.bind(server_address)
 
-    PORT = int(sys.argv[1])
+    # Listen for incoming connections
+    server_socket.listen(5)
 
-    # Socket variables
-    server_fd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_fd.bind(('localhost', PORT))
-    server_fd.listen(3)
+    print("SSL server is listening...")
 
-    print("Waiting connection...")
-    # Accept connections with client_fd
-    client_fd, addr = server_fd.accept()
-    print("Connection established.")
+    # Accept an incoming connection
+    client_socket, client_address = server_socket.accept()
+    #context = ssl.create_default_context()
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile='./security/server.crt', keyfile='./security/private.key')
+    # Wrap the socket with SSL
+    ssl_socket = context.wrap_socket(client_socket, server_side=True)
 
-    # Initialize SSL context
-    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+    try:
+        # Receive data from the client
+        data = ssl_socket.recv(1024)
+        print("Received:", data.decode())
 
-    # Wrap the socket
-    ssl_socket = context.wrap_socket(client_fd, server_side=True)
-
-    # Read authentication token
-    auth_data = ssl_socket.recv(BUFFER_SIZE)
-    auth = auth_data.decode().split()
-
-    username, password = auth[0], auth[1]
-
-    # Sign up user if necessary
-    if auth[2] == 'signup':
-        if not find_user(username, password, 0):
-            add_user(username, password)
-        num_msg = -2
-
-        while num_msg == -2 and find_user(username, password, 0):
-            ssl_socket.send(str(num_msg).encode())
-            auth_data = ssl_socket.recv(BUFFER_SIZE)
-            auth = auth_data.decode().split()
-            username, password = auth[0], auth[1]
-
-    # Ensure user exists
-    while not find_user(username, password, 1):
-        ssl_socket.send(str(num_msg).encode())
-        auth_data = ssl_socket.recv(BUFFER_SIZE)
-        auth = auth_data.decode().split()
-        username, password = auth[0], auth[1]
-
-    # Populate linked list of messages and return number of messages for the user
-    num_msg = create_database(username)
-    # Send result to the client
-    ssl_socket.send(str(num_msg).encode())
-
-    const_exit_str = "EXIT"
-    buffer = bytearray(BUFFER_SIZE)
-    command = bytearray(26)
-    read_cmd = bytearray(b"READ")
-    compose_cmd = bytearray(b"COMPOSE")
-    recipient = bytearray(256)
-    while True:
-        # Reset input and command buffers
-        buffer = bytearray(BUFFER_SIZE)
-        command = bytearray(26)
-        
-        count = ssl_socket.recv_into(buffer, BUFFER_SIZE)
-        if count < 0:
-            print("Read error from server")
-            save_database(head)  # Save messages
-            break
-
-        buffer = buffer.decode().strip()
-        command, *rest = buffer.split()
-
-        if command == const_exit_str:
-            break
-
-        if command == read_cmd and not rest:
-            n, message = read_next_message(username)
-            if n == 1:
-                ssl_socket.send(message.encode())
-                remove_node(username)
-                sender, msg = message.split(maxsplit=1)
-                notification = "[ {} read your message: {} ]".format(username, msg)
-                save_message("NOTIFICATION", sender, notification)
-            else:
-                ssl_socket.send("READ ERROR".encode())
-
-        elif command == compose_cmd:
-            recipient = rest[0]
-            message = ' '.join(rest[1:])
-            if save_message(username, recipient, message):
-                ssl_socket.send("MESSAGE SENT".encode())
-            else:
-                ssl_socket.send("MESSAGE FAILED".encode())
-
-        else:
-            ssl_socket.send("ERROR".encode())
-            break
-
-    save_database(username)
-    # Closing the sockets
-    ssl_socket.shutdown(socket.SHUT_RDWR)
-    ssl_socket.close()
-    server_fd.close()
+    finally:
+        # Close the connection
+        ssl_socket.close()
 
 if __name__ == "__main__":
-    main()
+    ssl_server()
