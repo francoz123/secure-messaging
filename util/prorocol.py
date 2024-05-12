@@ -168,6 +168,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 def send_public_key(public_key_file, socket):
     # Load the public key from file
+    print('sending public key')
     with open(public_key_file, "rb") as f:
         public_key_bytes = f.read()
 
@@ -213,6 +214,7 @@ def sign_message2(private_key_path: str, message_hash: bytes) -> bytes:
 
     
 def sign_message(message, private_key_file):
+    print('signing message')
     # Load the private key from file
     with open(private_key_file, "rb") as f:
         private_key_bytes = f.read()
@@ -236,9 +238,11 @@ def sign_message(message, private_key_file):
         hashes.SHA256()
     )
 
-    return signature
+    print('signing message complete')
+    return signature.hex()
 
 def verify_signature(message, signature, public_key_file):
+    print('verifying signature')
     # Load the public key from file
     with open(public_key_file, "rb") as f:
         public_key_bytes = f.read()
@@ -254,87 +258,49 @@ def verify_signature(message, signature, public_key_file):
 
     # Verify the signature using the public key
     try:
-        public_key.verify(
-            signature,
-            digest,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        return True
+      public_key.verify(
+        signature,
+        digest,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+      )
+      print('verifying signature done')
+
+      return True
     except Exception as e:
-        return False
-    
-def encrypt_message(message, public_key_file):
-    # Load the public key from file
+      print('verifying signature failed')
+      return False
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+
+def encrypt_with_public_key(plaintext, public_key_file):
+    print('encryptin data')
+    # Load the private key from file
     with open(public_key_file, "rb") as f:
-        public_key_bytes = f.read()
+        public_key = RSA.importKey(f.read())
 
-    # Convert the public key bytes to PEM format
-    public_key = serialization.load_pem_public_key(
-        public_key_bytes,
-        backend=default_backend()
-    )
+    # Create an RSA cipher object with the private key
+    cipher = PKCS1_OAEP.new(public_key)
 
-    # Encrypt the message using the public key
-    ciphertext = public_key.encrypt(
-        message.encode(),
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
+    # Encrypt the plaintext
+    ciphertext = cipher.encrypt(plaintext.encode())
+    print('encryption complete')
     return ciphertext.hex()
 
-def decrypt_message(encrypted_message, private_key_file):
+def decrypt_with_private_key(ctext, private_key_file):
+    print('dencryptin data')
     # Load the private key from file
     with open(private_key_file, "rb") as f:
-        private_key_bytes = f.read()
+        private_key = RSA.importKey(f.read())
 
-    # Convert the private key bytes to PEM format
-    private_key = serialization.load_pem_private_key(
-        private_key_bytes,
-        password=None,
-        backend=default_backend()
-    )
+    # Create an RSA cipher object with the private key
+    cipher = PKCS1_OAEP.new(private_key)
 
-    # Decrypt the encrypted message using the private key
-    encrypted_message_bytes = bytes.fromhex(encrypted_message)
-    plaintext = private_key.decrypt(
-        encrypted_message_bytes,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=padding.algorithm.MGF1(hashes.SHA256())),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
+    # Encrypt the plaintext
+    plaintext = cipher.decrypt(ctext)
+    print('dencryption complete')
     return plaintext.decode()
-
-def send_encrypted_message(encrypted_message, host, port):
-    # Create a socket object
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Connect to the server
-        s.connect((host, port))
-        
-        # Send the encrypted message
-        s.sendall(encrypted_message)
-
-def send_encrypted_message_as_json(encrypted_message, host, port):
-    # Create a socket object
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Connect to the server
-        s.connect((host, port))
-        
-        # Create a dictionary to hold the encrypted message
-        message_dict = {'encrypted_message': encrypted_message.hex()}  # Convert bytes to hex string
-        
-        # Convert the dictionary to JSON format
-        json_message = json.dumps(message_dict)
-        
-        # Send the JSON message
-        s.sendall(json_message.encode())

@@ -48,7 +48,7 @@ def main():
             current_message = messages[username].pop(0)
             responese = json.dumps(current_message)
             server_socket.sendall(responese.encode())
-            if current_message['type'] != 'read':
+            if current_message['type'] != 'unread':
               current_message['type'] = 'read'
               messages[username].append(current_message)
           else:
@@ -58,12 +58,14 @@ def main():
           recipient = json_data['recipient']
           if not 'message' in json_data:
             server_socket.sendall(pkeys[recipient].encode())
-            data = server_socket.recv(1024)
+            data = server_socket.recv(2048)
             # Deserialize JSON string to Python dictionary
+            print('reading message')
             json_data = json.loads(data.decode())
             
-          message = {'sender': username, 'message': json_data['message'], 'recipient': recipient, 'hash': 'hash',\
-                     'type': 'unread'}
+          message = {'sender': username, 'message': json_data['message'], 'recipient': recipient, 'hash': \
+                     json_data['hash'], 'type': 'unread'}
+          print('reading message done')
           if recipient in messages:
             messages[recipient].append(message)
           else:
