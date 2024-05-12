@@ -84,8 +84,6 @@ def authenticate(server_socket):
       if user['username'] == user_json['username'] and user['password'] == hash_password(user_json['password']):
         found = True
 
-    print(hash_password(user_json['password']))
-
     if user_json['auth_type'] == 'login' and not found:
       return -1, user_json
     elif user_json['auth_type'] == 'register' and found:
@@ -95,7 +93,7 @@ def authenticate(server_socket):
       return 1, user_json
     elif user_json['auth_type'] == 'register' and not found:
       write_credentials(user_json['username'], hash_password(user_json['password']), './data/users.json')
-      print(f"User: {user_json['username']} is logged in")
+      print(f"User {user_json['username']} is logged in")
       return 2, user_json
     else:
       return 2, user_json
@@ -278,7 +276,6 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
 def encrypt_with_public_key(plaintext, public_key_file):
-    print('encryptin data')
     # Load the private key from file
     with open(public_key_file, "rb") as f:
         public_key = RSA.importKey(f.read())
@@ -288,11 +285,9 @@ def encrypt_with_public_key(plaintext, public_key_file):
 
     # Encrypt the plaintext
     ciphertext = cipher.encrypt(plaintext.encode())
-    print('encryption complete')
     return ciphertext.hex()
 
 def decrypt_with_private_key(ctext, private_key_file):
-    print('dencryptin data')
     # Load the private key from file
     with open(private_key_file, "rb") as f:
         private_key = RSA.importKey(f.read())
@@ -302,5 +297,4 @@ def decrypt_with_private_key(ctext, private_key_file):
 
     # Encrypt the plaintext
     plaintext = cipher.decrypt(ctext)
-    print('dencryption complete')
     return plaintext.decode()

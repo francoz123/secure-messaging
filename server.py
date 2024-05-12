@@ -29,13 +29,11 @@ def main():
       # Deserialize JSON string to Python dictionary
       json_data = json.loads(data.decode())
       pkeys[username] = json_data['pkey']
-      print(json_data['pkey'])
 
       if not username in messages:
         messages[username] = []
       num_msg = len(messages[username])
       server_socket.sendall(str(num_msg).encode())
-      print(messages)
       connected = True
       while connected:
         # Receive data from the client
@@ -48,7 +46,7 @@ def main():
             current_message = messages[username].pop(0)
             responese = json.dumps(current_message)
             server_socket.sendall(responese.encode())
-            if current_message['type'] != 'unread':
+            if current_message['type'] == 'unread':
               current_message['type'] = 'read'
               messages[username].append(current_message)
           else:
@@ -57,25 +55,28 @@ def main():
         if command == 'COMPOSE':
           recipient = json_data['recipient']
           if not 'message' in json_data:
-            server_socket.sendall(pkeys[recipient].encode())
-            data = server_socket.recv(2048)
-            # Deserialize JSON string to Python dictionary
-            print('reading message')
-            json_data = json.loads(data.decode())
+            if not recipient in pkeys:
+              server_socket.sendall('None'.encode())
+            elif recipient in pkeys:
+              server_socket.sendall(pkeys[recipient].encode())
+              data = server_socket.recv(2048)
+              # Deserialize JSON string to Python dictionary
+              json_data = json.loads(data.decode())
             
-          message = {'sender': username, 'message': json_data['message'], 'recipient': recipient, 'hash': \
-                     json_data['hash'], 'type': 'unread'}
-          print('reading message done')
-          if recipient in messages:
-            messages[recipient].append(message)
-          else:
-            messages[recipient] = []
-            messages[recipient].append(message)
-          responese = 'MESSAGE SENT'
-          server_socket.sendall(responese.encode())
+              message = {'sender': username, 'message': json_data['message'], 'recipient': recipient, 'hash': \
+                        json_data['hash'], 'type': 'unread'}
+              if recipient in messages:
+                messages[recipient].append(message)
+              else:
+                messages[recipient] = []
+                messages[recipient].append(message)
+              responese = 'MESSAGE SENT'
+              server_socket.sendall(responese.encode())
+            else:
+              responese = 'MESSAGE SENT'
+              server_socket.sendall(responese.encode())
         if command == 'EXIT':
           connected =False
-        print(messages)
     except socket.error as se:
       print(f"Server error: {se}")
       sys.exit(1)

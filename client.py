@@ -58,18 +58,17 @@ def main():
         data['command'] =  command
         client_socket.sendall(json.dumps(data).encode())
         response = client_socket.recv(2048).decode()
-        print(response)
         if response == "READ ERROR":
-          print("You have no messages\n")
+          print(">>> You have no messages\n")
         else:
           response_json = json.loads(response)
           decrypted_message = decrypt_with_private_key(bytes.fromhex(response_json['message']), privkey_file)
           if not hash_password(decrypted_message) == response_json['hash']:
-            print('Message might have been tampered with!')
+            print('>>> Message might have been tampered with!')
           if response_json['type'] == 'read':
-            print(f"{response_json['recipient']} read your message: {decrypted_message}\n")
+            print(f">>> {response_json['recipient']} read your message: {decrypted_message}\n")
           else:
-            print(f"{response_json['sender']}: {decrypted_message}\n")
+            print(f">>> {response_json['sender']}: {decrypted_message}\n")
       elif command == "COMPOSE":
         recipient = get_username2("Enter recipient's name: ")
         message = ascii_input("Enter message to send: ")
@@ -77,29 +76,31 @@ def main():
           data = json.dumps({'command': command, 'recipient':recipient})
           client_socket.sendall(data.encode())
           response = client_socket.recv(1024).decode()
-          pkeys[recipient] = response
-        #else:
-        message_signature = sign_message(message, privkey_file)
-        message_hash = hash_password(message)
-        encrypted_message = encrypt_with_public_key(message, pubkey_file)
-        data = json.dumps({'command': command, 'recipient':recipient, 'message':encrypted_message, 'hash': message_hash})
-        client_socket.sendall(data.encode())
-        #response = client_socket.recv(1024).decode()
-        response = client_socket.recv(2048).decode()
-        if response == "MESSAGE SENT":
-          print("Message sent successfully\n")
-        elif response == "MESSAGE FAILED":
-          print("Message failed to send\n")
-        else:
-          raise ValueError("Invalid response from server")
+          if response == 'None':
+            print(f'>>> User {recipient} does not exist. Message was not sent.')
+          else:
+            pkeys[recipient] = response
+            #message_signature = sign_message(message, privkey_file)
+            message_hash = hash_password(message)
+            encrypted_message = encrypt_with_public_key(message, pubkey_file)
+            data = json.dumps({'command': command, 'recipient':recipient, 'message':encrypted_message, 'hash': message_hash})
+            client_socket.sendall(data.encode())
+            #response = client_socket.recv(1024).decode()
+            response = client_socket.recv(2048).decode()
+            if response == "MESSAGE SENT":
+              print(">>> Message sent successfully\n")
+            elif response == "MESSAGE FAILED":
+              print(">>> Message failed to send\n")
+            else:
+              raise ValueError(">>> Invalid response from server")
         
       elif command == "EXIT":
         data['command'] = 'EXIT'
         client_socket.sendall(json.dumps(data).encode())
-        print("Disconnected from server")
+        print(">>> Disconnected from server")
         connected = False
       else:
-        print("Invalid command")
+        print(">>> Invalid command")
 
   except Exception as e:
      print(f"Client error: {traceback.format_exc()}")
