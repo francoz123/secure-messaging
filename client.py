@@ -80,9 +80,8 @@ def main():
             print(f'>>> User {recipient} does not exist. Message was not sent.')
           else:
             pkeys[recipient] = response
-            #message_signature = sign_message(message, privkey_file)
             message_hash = hash_password(message)
-            encrypted_message = encrypt_with_public_key(message, pubkey_file)
+            encrypted_message = encrypt_with_public_key2(message, pkeys[recipient])
             data = json.dumps({'command': command, 'recipient':recipient, 'message':encrypted_message, 'hash': message_hash})
             client_socket.sendall(data.encode())
             #response = client_socket.recv(1024).decode()

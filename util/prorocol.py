@@ -61,7 +61,7 @@ def ssl_socket(server_socket):
   # Listen for incoming connections
   server_socket.listen(5)
   # Accept an incoming connection
-  client_socket = server_socket.accept()
+  client_socket, _ = server_socket.accept()
   context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
   # Load certificate
   context.load_cert_chain(certfile='./security/server.crt', keyfile='./security/private.key')
@@ -134,15 +134,13 @@ def authenticate(server_socket):
     elif user_json['auth_type'] == 'register' and found:
       return -2, user_json
     elif user_json['auth_type'] == 'login' and found:
-      print(f"User: {user_json['username']} is logged in")
+      print(f"User {user_json['username']} is logged in")
       return 1, user_json
     elif user_json['auth_type'] == 'register' and not found:
       write_credentials(user_json['username'], hash_password(user_json['password']), './data/users.json')
       print(f"User {user_json['username']} is logged in")
       return 2, user_json
-    else:
-      return 2, user_json
-    print(f"User: {user_json['username']} is logged in")
+    return None, None
   except socket.error as se:
      print(f"Server error: {se}")
   except Exception as e:
@@ -319,6 +317,25 @@ def encrypt_with_public_key(plaintext, public_key_file):
   # Load the private key from file
   with open(public_key_file, "rb") as f:
       public_key = RSA.importKey(f.read())
+
+  # Create an RSA cipher object with the private key
+  cipher = PKCS1_OAEP.new(public_key)
+
+  # Encrypt the plaintext
+  ciphertext = cipher.encrypt(plaintext.encode())
+  return ciphertext.hex()
+
+def encrypt_with_public_key2(plaintext, public_key):
+  """
+    Encrypts plaintext
+    Args:
+      plaintext (str): Text to be encrypted
+      public_key_file (srt): public key file name
+    Return:
+      hex: Hex value of the cypher text
+  """
+  # Load the private key from file
+  public_key = RSA.importKey(public_key.encode())
 
   # Create an RSA cipher object with the private key
   cipher = PKCS1_OAEP.new(public_key)

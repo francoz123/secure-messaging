@@ -58,6 +58,7 @@ def main():
             if not recipient in pkeys:
               server_socket.sendall('None'.encode())
             elif recipient in pkeys:
+              print(pkeys)
               server_socket.sendall(pkeys[recipient].encode())
               data = server_socket.recv(2048)
               # Deserialize JSON string to Python dictionary
