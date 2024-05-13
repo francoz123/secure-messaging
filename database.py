@@ -1,6 +1,16 @@
 import json
 
 def write_credentials(username, password, filename):
+    """
+        Writes user credentials to file
+
+        Args:
+            username (str)
+            password (str)
+            filename (str)
+        Return:
+            None
+    """
     # Create a dictionary with username and password
     credentials = {
         "username": username,
@@ -25,6 +35,14 @@ def read_credentials(filename):
         return credentials.get("username"), credentials.get("password")
     
 def read_all_credentials(filename):
+    """
+        Loades user credentials from file into a list
+
+        Args:
+            filename (str): file name
+        Return:
+            list: list of user credentials
+    """
     credentials_list = []
 
     # Open the file in read mode
