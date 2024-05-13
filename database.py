@@ -47,7 +47,7 @@ def save_public_key(username, public_key, filename):
             json.dump(key, file)
             file.write('\n')  # Add a newline character to separate JSON objects
     except Exception as e:
-        print(f"Error writing credentials to file: {e}")
+        print(f"Error writing to file: {e}")
 
 def load_public_keys(filename):
     """
@@ -116,6 +116,36 @@ def load_users(filename):
             credentials = json.loads(line)
             users[credentials['username']] = credentials
     return users
+
+def load_messages(filename):
+    """
+        Loades messages from file
+
+        Args:
+            filename (str): file name
+        Return:
+            dict
+    """
+    # Open the file in read mode
+    with open(filename, 'r') as file:
+        # Load the JSON data from the line
+        messages = json.loads(file.read())
+    return messages
+
+def save_messages(messages, filename):
+    """
+        Saves messages to file
+
+        Args:
+            filename (str): file name
+        Return:
+            None
+    """
+    # Open the file in read mode
+    with open(filename, 'w') as file:
+        # Write the JSON data to file
+        json.dump(messages, file)
+        file.write('\n') 
 
 if __name__ == '__main__':
     username = 'hello'

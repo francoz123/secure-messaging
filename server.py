@@ -4,7 +4,7 @@ import ssl
 from database import *
 from util.prorocol import *
 
-messages = {}
+messages = load_messages('data/messages.json')
 public_keys = load_public_keys('data/keys.json')
 users_dict = load_users('data/users.json')
 
@@ -78,11 +78,14 @@ def main():
               responese = 'MESSAGE SENT'
               server_socket.sendall(responese.encode())
         if command == 'EXIT':
+          save_messages(messages, 'data/messages.json')
           connected =False
     except socket.error as se:
+      save_messages(messages, 'data/messages.json')
       print(f"Server error: {se}")
       sys.exit(1)
     except Exception as e:
+      save_messages(messages, 'data/messages.json')
       print(f"Server error: {e}")
       sys.exit(1)
 
