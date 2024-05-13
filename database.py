@@ -129,7 +129,8 @@ def load_messages(filename):
     # Open the file in read mode
     with open(filename, 'r') as file:
         # Load the JSON data from the line
-        messages = json.loads(file.read())
+        file_content = file.read()
+        messages = json.loads(file_content) if len(file_content) > 0 else {}
     return messages
 
 def save_messages(messages, filename):
@@ -145,11 +146,8 @@ def save_messages(messages, filename):
     with open(filename, 'w') as file:
         # Write the JSON data to file
         json.dump(messages, file)
-        file.write('\n') 
 
 if __name__ == '__main__':
-    username = 'hello'
-    key = {
-        username: 'public_key',
-    }
-    print (key)
+    with open('data/messages.json', 'w') as file:
+        # Write the JSON data to file
+        json.dump({}, file)

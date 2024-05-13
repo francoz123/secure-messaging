@@ -34,14 +34,14 @@ def main():
       res = int(client_socket.recv(1024).decode())
     print('Login successful')
 
-    pubkey_file = username+"_pubkey.pem";
-    privkey_file = username+"_privkey.pem"
-    if not file_exists(username+"_privkey.pem") or not file_exists(username+"_pubkey.pem"):
-      generate_key_pair(username+"_pubkey.pem", username+"_privkey.pem")
+    pubkey_file = f"keys/{username}_pubkey.pem"
+    privkey_file = f"keys/{username}_privkey.pem"
+    if not file_exists(pubkey_file) or not file_exists(privkey_file):
+      generate_key_pair(pubkey_file, privkey_file)
       
-    with open(username+"_pubkey.pem", 'rb') as key_file:
+    with open(pubkey_file, 'rb') as key_file:
       public_key_content = key_file.read()
-      send_public_key(username+"_pubkey.pem", client_socket)
+    send_public_key(pubkey_file, client_socket)
 
     num_msg = int(client_socket.recv(1024).decode())
     print(f"You have {num_msg} unread message(s)")
