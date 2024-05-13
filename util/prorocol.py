@@ -223,7 +223,6 @@ def send_public_key(public_key_file, socket):
       socket (int): client file descriptor
   """
   # Load the public key from file
-  print('sending public key')
   with open(public_key_file, "rb") as f:
       public_key_bytes = f.read()
 

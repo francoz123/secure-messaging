@@ -5,7 +5,8 @@ from database import *
 from util.prorocol import *
 
 messages = {}
-pkeys = {}
+public_keys = load_public_keys('data/keys.json')
+users_dict = load_users('data/users.json')
 
 def main():
   if len(sys.argv) != 2:
@@ -28,7 +29,8 @@ def main():
       data = server_socket.recv(1024)
       # Deserialize JSON string to Python dictionary
       json_data = json.loads(data.decode())
-      pkeys[username] = json_data['pkey']
+      public_keys[username] = json_data['pkey']
+      save_public_key(username, json_data['pkey'], 'data/keys.json')
 
       if not username in messages:
         messages[username] = []
@@ -55,11 +57,10 @@ def main():
         if command == 'COMPOSE':
           recipient = json_data['recipient']
           if not 'message' in json_data:
-            if not recipient in pkeys:
+            if not recipient in public_keys:
               server_socket.sendall('None'.encode())
-            elif recipient in pkeys:
-              print(pkeys)
-              server_socket.sendall(pkeys[recipient].encode())
+            elif recipient in public_keys:
+              server_socket.sendall(public_keys[recipient].encode())
               data = server_socket.recv(2048)
               # Deserialize JSON string to Python dictionary
               json_data = json.loads(data.decode())

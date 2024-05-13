@@ -25,7 +25,6 @@ def main():
     # Send data to the server
     client_socket.sendall(data.encode())
     res = int(client_socket.recv(1024).decode())
-    print(res)
     while res < 0:
       message = 'Login failed' if res == -1 else 'Username already exists'
       print(message)
