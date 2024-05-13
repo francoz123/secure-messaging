@@ -68,7 +68,7 @@ def main():
           if response_json['type'] == 'read':
             print(f">>> {response_json['recipient']} read your message: {decrypted_message}\n")
           else:
-            print(f">>> {response_json['sender']}: {decrypted_message}\n")
+            print(f">>> {response_json['sender']}\n>>> {decrypted_message}\n")
       elif command == "COMPOSE":
         recipient = get_username2("Enter recipient's name: ")
         message = ascii_input("Enter message to send: ")

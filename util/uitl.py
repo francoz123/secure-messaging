@@ -15,6 +15,7 @@ def is_ascii(s):
   
 
 def get_option():
+    """ Gets authentication choice od a user"""
     opt = ''
     err_msg = "Invalid option. Try again"
     user_msg = "Enter option and press enter"
@@ -33,6 +34,7 @@ def get_option():
     return opt
 
 def is_strong_password(password):
+  """ Check password strength"""
   upper = lower = digit = special = False
 
   for c in password:
@@ -48,6 +50,7 @@ def is_strong_password(password):
   return upper and lower and digit and special
 
 def get_username():
+  """ Get user's username from input"""
   username = input("Enter your username: ")
   while ' ' in username or not is_ascii(username):
     print("Username must not contain spaces and must be ASCII characters only.")
@@ -55,6 +58,8 @@ def get_username():
   return username
 
 def get_password():
+  """ Get user's password from input"""
+
   password = getpass.getpass("Enter your password: ")
   while True:
     if not password:
@@ -65,6 +70,8 @@ def get_password():
   return password
 
 def get_password_with_confirmation():
+  """ Get user's password from input with confirmation"""
+
   password = getpass.getpass("Enter your password: ")
   password_copy = getpass.getpass("confirm your password: ")
   while True:
@@ -81,6 +88,7 @@ def get_password_with_confirmation():
   return password
 
 def get_user_info():
+  """ Get user's username and password from input"""
   username = password = password_copy = auth_type = ''
   opt = get_option()
 
@@ -97,7 +105,7 @@ def get_user_info():
   return username, password, auth_type  
 
 def ascii_input(prompt):
-    """ Gets ASCII input with the given prompt. """
+    """ Gets ASCII input with the given prompt. Adapted from example solution"""
     while True:
         value = input(prompt)
         try:
@@ -108,7 +116,7 @@ def ascii_input(prompt):
             return value
 
 def get_username2(prompt):
-  """ Gets an ASCII username with the given prompt. """
+  """ Gets an ASCII username with the given prompt. . Adapted from example solution"""
   while True:
     username = ascii_input(prompt)
     if " " not in username:
