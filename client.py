@@ -103,7 +103,7 @@ def main():
         print(">>> Invalid command")
 
   except Exception as e:
-     print(f"Client error: {traceback.format_exc()}")
+     print(f"Client error: {e}")
      sys.exit(1)
   
 
