@@ -3,19 +3,25 @@ import json
 import socket
 import ssl
 import sys
-import bcrypt
 from cryptography.hazmat.backends import *
 from OpenSSL import crypto
 from database import *
 from util.uitl import print_and_exit
 
 def ssl_client(server_address, port):
+  """
+    Creates SSL client socket.
+
+    Args:
+        server_address (str): The address of the server.
+        port (int): Server port number.
+
+    Returns:
+        int: File descriptor.
+    """
+  # Create SSL context and set verification
   context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
   context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile='./security/server.crt')
-  #context.load_default_certs()  # Load default CA certificates (optional)
-  #context.check_hostname = False  # Disable hostname verification
-  #context.verify_mode = ssl.CERT_NONE  # Disable certificate verification
-
   # Create a TCP/IP socket
   client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   # Connect the socket to the server address and port
@@ -25,6 +31,15 @@ def ssl_client(server_address, port):
   return ssl_socket
 
 def socket_server(port):
+  """
+    Creates and binds server socket to a port.
+
+    Args:
+        port (int): Server port number.
+
+    Returns:
+        int: File descriptor.
+    """
   # Create a TCP/IP socket
   server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -35,18 +50,34 @@ def socket_server(port):
   return server_socket
 
 def ssl_socket(server_socket):
+  """
+    Listens, accept connections, and returns SSL socket.
+
+    Args:
+        server_socket (int): Server socket file descriptor.
+    Returns:
+        int: File descriptor.
+    """
   # Listen for incoming connections
   server_socket.listen(5)
-
   # Accept an incoming connection
-  client_socket, client_address = server_socket.accept()
+  client_socket = server_socket.accept()
   context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+  # Load certificate
   context.load_cert_chain(certfile='./security/server.crt', keyfile='./security/private.key')
   # Wrap the socket with SSL
   ssl_socket = context.wrap_socket(client_socket, server_side=True)
   return ssl_socket
 
 def validate_port(port):
+  """
+    Ensures the port number is an integer;
+
+    Args:
+        port (int): port number.
+    Returns:
+        None
+  """
   try:
     port = int(port)
     return port
@@ -54,21 +85,35 @@ def validate_port(port):
     print_and_exit("Usage: {} <port>".format(sys.argv[0]))
 
 def hash_password(password):
-    # Convert the plain text password to bytes
-    password_bytes = password.encode('utf-8')
+  """
+    Returns a string's hash value
 
-    # Choose a hash algorithm (e.g., SHA-256)
-    hash_algorithm = hashlib.sha256()
+    Args:
+        Input_str (str): A string to hash.
+    Returns:
+        bytes: byte value of the hash
+  """
+  # Convert the plain text password to bytes
+  password_bytes = password.encode('utf-8')
+  # Choose a hash algorithm (e.g., SHA-256)
+  hash_algorithm = hashlib.sha256()
+  # Update the hash object with the password bytes
+  hash_algorithm.update(password_bytes)
+  # Get the hexadecimal digest (hashed value)
+  hashed_password = hash_algorithm.hexdigest()
 
-    # Update the hash object with the password bytes
-    hash_algorithm.update(password_bytes)
-
-    # Get the hexadecimal digest (hashed value)
-    hashed_password = hash_algorithm.hexdigest()
-
-    return hashed_password
+  return hashed_password
 
 def authenticate(server_socket):
+  """
+    Authenticates a user
+
+    Args:
+      server_socket (int): Server file descriptor
+    Return:
+      int, {str, str} (Tupple): Authentication status and user details
+  """
+  # Load users to memory
   users = read_all_credentials('data/users.json')
   try:
     # Receive data from the client
@@ -79,7 +124,7 @@ def authenticate(server_socket):
     # Deserialize JSON string to Python dictionary
     user_json = json.loads(json_string)
     found = False
-
+    # Authenticate user
     for user in users:
       if user['username'] == user_json['username'] and user['password'] == hash_password(user_json['password']):
         found = True
@@ -104,14 +149,14 @@ def authenticate(server_socket):
      print(f"Server error: {e}")
 
 
-def split_response(response):
+""" def split_response(response):
   if response[-1] == "\n":
         response = response[:-1]
 
   msg_parts = response.split(" ", 1)
   command = msg_parts[0]
   remainder = msg_parts[1] if len(msg_parts) > 1 else None
-  return command, remainder
+  return command, remainder """
 
 """ def generate_key_files(public_key_file, private_key_file):
     # Check if key files already exist
@@ -148,6 +193,13 @@ def split_response(response):
     print("Public key file created:", public_key_file) """
 
 def generate_key_pair(public_key_file, private_key_file):
+    """
+      Generates asymetric key pair and stores them
+
+      Args:
+        public_key_file (str): public key file name
+        private_key_file (str): private key file name
+    """
     pk = crypto.PKey()
     pk.generate_key(crypto.TYPE_RSA, 2048)
 
@@ -165,53 +217,33 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 def send_public_key(public_key_file, socket):
-    # Load the public key from file
-    print('sending public key')
-    with open(public_key_file, "rb") as f:
-        public_key_bytes = f.read()
+  """
+    Sends user public key to the server
 
-    # Convert the public key bytes to PEM format
-    public_key = serialization.load_pem_public_key(public_key_bytes)
+    Args:
+      public_key_file (str): public key file name
+      socket (int): client file descriptor
+  """
+  # Load the public key from file
+  print('sending public key')
+  with open(public_key_file, "rb") as f:
+      public_key_bytes = f.read()
 
-    # Encode the public key in Base64
-    public_key_base64 = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode()
+  # Convert the public key bytes to PEM format
+  public_key = serialization.load_pem_public_key(public_key_bytes)
 
-    socket.sendall(json.dumps({'pkey':public_key_base64}).encode())
+  # Encode the public key in Base64
+  public_key_base64 = public_key.public_bytes(
+      encoding=serialization.Encoding.PEM,
+      format=serialization.PublicFormat.SubjectPublicKeyInfo
+  ).decode()
+  # Send key
+  socket.sendall(json.dumps({'pkey':public_key_base64}).encode())
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
-
-def sign_message2(private_key_path: str, message_hash: bytes) -> bytes:
-    """
-    Signs a message hash using the private key.
-
-    Args:
-        private_key_path (str): Path to the private key file.
-        message_hash (bytes): The hash of the message.
-
-    Returns:
-        bytes: The signature.
-    """
-    with open(private_key_path, "rb") as private_key_file:
-        private_key = serialization.load_pem_private_key(
-            private_key_file.read(), password=None
-        )
-
-    signature = private_key.sign(
-        message_hash,
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH,
-        ),
-        hashes.SHA256(),
-    )
-    return signature
-
     
-def sign_message(message, private_key_file):
+""" def sign_message(message, private_key_file):
     print('signing message')
     # Load the private key from file
     with open(private_key_file, "rb") as f:
@@ -237,9 +269,9 @@ def sign_message(message, private_key_file):
     )
 
     print('signing message complete')
-    return signature.hex()
+    return signature.hex() """
 
-def verify_signature(message, signature, public_key_file):
+""" def verify_signature(message, signature, public_key_file):
     print('verifying signature')
     # Load the public key from file
     with open(public_key_file, "rb") as f:
@@ -270,31 +302,47 @@ def verify_signature(message, signature, public_key_file):
       return True
     except Exception as e:
       print('verifying signature failed')
-      return False
+      return False """
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
 def encrypt_with_public_key(plaintext, public_key_file):
-    # Load the private key from file
-    with open(public_key_file, "rb") as f:
-        public_key = RSA.importKey(f.read())
+  """
+    Encrypts plaintext
+    Args:
+      plaintext (str): Text to be encrypted
+      public_key_file (srt): public key file name
+    Return:
+      hex: Hex value of the cypher text
+  """
+  # Load the private key from file
+  with open(public_key_file, "rb") as f:
+      public_key = RSA.importKey(f.read())
 
-    # Create an RSA cipher object with the private key
-    cipher = PKCS1_OAEP.new(public_key)
+  # Create an RSA cipher object with the private key
+  cipher = PKCS1_OAEP.new(public_key)
 
-    # Encrypt the plaintext
-    ciphertext = cipher.encrypt(plaintext.encode())
-    return ciphertext.hex()
+  # Encrypt the plaintext
+  ciphertext = cipher.encrypt(plaintext.encode())
+  return ciphertext.hex()
 
-def decrypt_with_private_key(ctext, private_key_file):
-    # Load the private key from file
-    with open(private_key_file, "rb") as f:
-        private_key = RSA.importKey(f.read())
+def decrypt_with_private_key(cyphertext, private_key_file):
+  """
+    Dencrypts cyphertext
+    Args:
+      cyphertext (byte): Text to be decrypted
+      public_key_file (srt): public key file name
+    Return:
+      str: original text
+  """
+  # Load the private key from file
+  with open(private_key_file, "rb") as f:
+      private_key = RSA.importKey(f.read())
 
-    # Create an RSA cipher object with the private key
-    cipher = PKCS1_OAEP.new(private_key)
+  # Create an RSA cipher object with the private key
+  cipher = PKCS1_OAEP.new(private_key)
 
-    # Encrypt the plaintext
-    plaintext = cipher.decrypt(ctext)
-    return plaintext.decode()
+  # Encrypt the plaintext
+  plaintext = cipher.decrypt(cyphertext)
+  return plaintext.decode()
